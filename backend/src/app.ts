@@ -9,6 +9,8 @@ import { errorHandler } from './middleware/errorHandler';
 import { authenticateUser } from './middleware/auth';
 import authRoutes from './routes/auth.routes';
 import voiceRoutes from './routes/voice.routes';
+import reportRoutes from './routes/report.routes';
+import taxonomyRoutes from './routes/taxonomy.routes';
 
 export const createApp = (): Express => {
   const app = express();
@@ -68,6 +70,12 @@ export const createApp = (): Express => {
 
   // Multilingual Voice & Speech API Routes
   app.use('/api/voice', voiceRoutes);
+
+  // Citizen Complaint Reporting & Tracking Routes
+  app.use('/api/reports', reportRoutes);
+
+  // Central Taxonomies (Departments & Issue Categories)
+  app.use('/api', taxonomyRoutes);
 
   return app;
 };

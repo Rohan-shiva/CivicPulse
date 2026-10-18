@@ -24,7 +24,7 @@ export class ExifService {
           return {
             latitude: Number(gps.latitude.toFixed(6)),
             longitude: Number(gps.longitude.toFixed(6)),
-            altitude: typeof gps.altitude === 'number' ? Number(gps.altitude.toFixed(2)) : undefined,
+            altitude: typeof (gps as any).altitude === 'number' ? Number((gps as any).altitude.toFixed(2)) : undefined,
           };
         }
       }

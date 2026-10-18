@@ -7,6 +7,7 @@ import { IssueCategory } from '../models/IssueCategory';
 import { groqService, IGroqExtraction } from './groq.service';
 import { duplicateService } from './duplicate.service';
 import { createGeoJsonPoint } from '../utils/geo';
+import { env } from '../config/env';
 
 export class IncidentService {
   /**
