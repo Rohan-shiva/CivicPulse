@@ -6,6 +6,9 @@ import { env, getIntegrationStatus } from './config/env';
 import { isDatabaseConnected } from './config/database';
 import { errorHandler } from './middleware/errorHandler';
 
+import { authenticateUser } from './middleware/auth';
+import authRoutes from './routes/auth.routes';
+
 export const createApp = (): Express => {
   const app = express();
 
@@ -34,6 +37,9 @@ export const createApp = (): Express => {
   app.use(express.urlencoded({ extended: true, limit: `${env.MAX_IMAGE_SIZE_MB}mb` }));
   app.use(cookieParser());
 
+  // Global user authentication context from cookie/header
+  app.use(authenticateUser);
+
   // Health and Readiness Check Endpoint
   app.get('/api/health', (_req: Request, res: Response) => {
     const dbConnected = isDatabaseConnected();
@@ -56,8 +62,9 @@ export const createApp = (): Express => {
     });
   });
 
-  // Global Error Handler (must be mounted after routes)
-  // Routes will be registered here in upcoming commits
+  // Authentication API Routes
+  app.use('/api/auth', authRoutes);
 
   return app;
 };
+
