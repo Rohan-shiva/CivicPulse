@@ -8,6 +8,7 @@ import { errorHandler } from './middleware/errorHandler';
 
 import { authenticateUser } from './middleware/auth';
 import authRoutes from './routes/auth.routes';
+import voiceRoutes from './routes/voice.routes';
 
 export const createApp = (): Express => {
   const app = express();
@@ -64,6 +65,9 @@ export const createApp = (): Express => {
 
   // Authentication API Routes
   app.use('/api/auth', authRoutes);
+
+  // Multilingual Voice & Speech API Routes
+  app.use('/api/voice', voiceRoutes);
 
   return app;
 };
