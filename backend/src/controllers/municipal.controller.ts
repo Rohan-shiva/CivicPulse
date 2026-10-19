@@ -173,6 +173,55 @@ export class MunicipalController {
       next(error);
     }
   }
+
+  /**
+   * POST /api/municipal/work-orders/:workOrderId/verify
+   * Officer approves a resolution — marks incident Resolved and notifies reporters
+   */
+  async verifyResolution(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) throw new UnauthorizedError('Authentication required');
+
+      const { workOrderId } = req.params;
+      const workOrder = await workOrderService.verifyResolution(workOrderId, req.user.userId);
+
+      res.status(200).json({
+        success: true,
+        message: 'Resolution verified. Incident marked as Resolved.',
+        workOrder,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /api/municipal/work-orders/:workOrderId/reject
+   * Officer rejects a resolution with mandatory reason — returns to Assigned for rework
+   */
+  async rejectResolution(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) throw new UnauthorizedError('Authentication required');
+
+      const { workOrderId } = req.params;
+      const { reason } = req.body;
+      if (!reason) throw new BadRequestError('Rejection reason is required');
+
+      const workOrder = await workOrderService.rejectResolution(
+        workOrderId,
+        req.user.userId,
+        reason
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Resolution rejected. Work order returned for rework.',
+        workOrder,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const municipalController = new MunicipalController();

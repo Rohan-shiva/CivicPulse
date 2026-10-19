@@ -43,4 +43,14 @@ router.get('/verifications', (req, res, next) =>
   municipalController.getVerificationQueue(req, res, next)
 );
 
+// Verify resolution (approve)
+router.post('/work-orders/:workOrderId/verify', (req, res, next) =>
+  municipalController.verifyResolution(req, res, next)
+);
+
+// Reject resolution (rework)
+router.post('/work-orders/:workOrderId/reject', (req, res, next) =>
+  municipalController.rejectResolution(req, res, next)
+);
+
 export default router;

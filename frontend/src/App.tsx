@@ -7,6 +7,7 @@ import { StaffLoginPage } from './pages/auth/StaffLoginPage';
 import { CitizenDashboard } from './pages/citizen/CitizenDashboard';
 import { CreateComplaintPage } from './pages/citizen/CreateComplaintPage';
 import { OfficerDashboard } from './pages/officer/OfficerDashboard';
+import { VerificationQueuePage } from './pages/officer/VerificationQueuePage';
 import { WorkerDashboard } from './pages/worker/WorkerDashboard';
 import { WorkOrderDetailPage } from './pages/worker/WorkOrderDetailPage';
 import { ResolutionSubmitPage } from './pages/worker/ResolutionSubmitPage';
@@ -80,6 +81,14 @@ export const AppContent: React.FC = () => {
             element={
               <ProtectedRoute allowedRoles={['officer', 'admin']}>
                 <OfficerDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/officer/verifications"
+            element={
+              <ProtectedRoute allowedRoles={['officer', 'admin']}>
+                <VerificationQueuePage />
               </ProtectedRoute>
             }
           />

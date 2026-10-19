@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import {
   AlertCircle,
   Clock,
@@ -197,16 +198,19 @@ export const OfficerDashboard: React.FC = () => {
         </div>
 
         {/* Awaiting Verification */}
-        <div className="bg-white p-4 rounded-xl border border-purple-200 bg-purple-50/20 shadow-sm">
+        <Link
+          to="/officer/verifications"
+          className="bg-white p-4 rounded-xl border border-purple-200 bg-purple-50/20 shadow-sm hover:border-purple-400 transition block group"
+        >
           <div className="flex items-center justify-between text-purple-700 mb-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Verification</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider group-hover:underline">Verification</span>
             <Clock className="w-4 h-4 text-purple-600" />
           </div>
           <p className="text-2xl font-black text-purple-800">
             {stats ? stats.awaitingVerification : '--'}
           </p>
-          <p className="text-[11px] text-purple-600 mt-0.5">Field work done, needs approval</p>
-        </div>
+          <p className="text-[11px] text-purple-600 mt-0.5">Click to audit & approve &rarr;</p>
+        </Link>
 
         {/* Resolved Today */}
         <div className="bg-white p-4 rounded-xl border border-emerald-200 bg-emerald-50/20 shadow-sm col-span-2 md:col-span-1">
