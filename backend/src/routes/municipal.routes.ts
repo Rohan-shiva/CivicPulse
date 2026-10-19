@@ -28,4 +28,19 @@ router.patch('/incidents/:incidentId/status', (req, res, next) =>
   municipalController.updateStatus(req, res, next)
 );
 
+// Assign field workers to incident -> create WorkOrder
+router.post('/incidents/:incidentId/assign', (req, res, next) =>
+  municipalController.assignWorkers(req, res, next)
+);
+
+// Available field workers list
+router.get('/field-workers', (req, res, next) =>
+  municipalController.getFieldWorkers(req, res, next)
+);
+
+// Verification queue
+router.get('/verifications', (req, res, next) =>
+  municipalController.getVerificationQueue(req, res, next)
+);
+
 export default router;

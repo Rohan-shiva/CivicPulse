@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { municipalService } from '../services/municipal.service';
+import { workOrderService } from '../services/workorder.service';
 import { BadRequestError, UnauthorizedError } from '../utils/errors';
 import { UrgencyLevel, IncidentStatus } from '../models/Incident';
 
@@ -109,6 +110,65 @@ export class MunicipalController {
     try {
       const geojson = await municipalService.getIncidentMap();
       res.status(200).json({ success: true, geojson });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /api/municipal/incidents/:incidentId/assign
+   * Assigns field workers to an incident and creates a WorkOrder
+   */
+  async assignWorkers(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) throw new UnauthorizedError('Authentication required');
+
+      const { incidentId } = req.params;
+      const { workerIds, scheduledAt } = req.body;
+
+      if (!Array.isArray(workerIds) || workerIds.length === 0) {
+        throw new BadRequestError('workerIds array is required and must not be empty');
+      }
+
+      const workOrder = await workOrderService.assignWorkers(
+        incidentId,
+        workerIds,
+        req.user.userId,
+        scheduledAt ? new Date(scheduledAt) : undefined
+      );
+
+      res.status(201).json({
+        success: true,
+        message: 'Workers assigned successfully. Work order created.',
+        workOrder,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /api/municipal/field-workers
+   * Lists available field workers, optionally filtered by department
+   */
+  async getFieldWorkers(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const department = req.query.department as string | undefined;
+      const workers = await municipalService.getFieldWorkers(department);
+      res.status(200).json({ success: true, count: workers.length, workers });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /api/municipal/verifications
+   * Returns incidents awaiting verification
+   */
+  async getVerificationQueue(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const queue = await municipalService.getVerificationQueue();
+      res.status(200).json({ success: true, count: queue.length, queue });
     } catch (error) {
       next(error);
     }
