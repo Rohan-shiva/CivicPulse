@@ -87,6 +87,32 @@ export class MunicipalController {
       next(error);
     }
   }
+
+  /**
+   * GET /api/municipal/dashboard
+   * Aggregated stats for officer dashboard: counts, priority breakdown, recent activity
+   */
+  async getDashboard(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const stats = await municipalService.getDashboardStats();
+      res.status(200).json({ success: true, ...stats });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /api/municipal/incidents/map
+   * Returns GeoJSON FeatureCollection of all active incidents for Leaflet map
+   */
+  async getIncidentMap(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const geojson = await municipalService.getIncidentMap();
+      res.status(200).json({ success: true, geojson });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const municipalController = new MunicipalController();

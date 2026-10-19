@@ -6,6 +6,7 @@ import { LoginPage } from './pages/auth/LoginPage';
 import { StaffLoginPage } from './pages/auth/StaffLoginPage';
 import { CitizenDashboard } from './pages/citizen/CitizenDashboard';
 import { CreateComplaintPage } from './pages/citizen/CreateComplaintPage';
+import { OfficerDashboard } from './pages/officer/OfficerDashboard';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({
   children,
@@ -66,6 +67,16 @@ export const AppContent: React.FC = () => {
             element={
               <ProtectedRoute>
                 <CitizenDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Municipal Officer Portal Routes */}
+          <Route
+            path="/officer"
+            element={
+              <ProtectedRoute allowedRoles={['officer', 'admin']}>
+                <OfficerDashboard />
               </ProtectedRoute>
             }
           />

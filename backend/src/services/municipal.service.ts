@@ -3,6 +3,7 @@ import { Incident, IIncident, IncidentStatus, UrgencyLevel } from '../models/Inc
 import { CitizenReport } from '../models/CitizenReport';
 import { WorkOrder } from '../models/WorkOrder';
 import { AuditLog } from '../models/AuditLog';
+import { User } from '../models/User';
 import { NotFoundError, BadRequestError } from '../utils/errors';
 
 export interface IIncidentFilters {
@@ -184,6 +185,172 @@ export class MunicipalService {
     });
 
     return incident;
+  }
+
+  /**
+   * Aggregated dashboard statistics for municipal officers.
+   * All counts derived from real MongoDB aggregations.
+   */
+  async getDashboardStats() {
+    const now = new Date();
+
+    const [
+      totalOpen,
+      priorityBreakdown,
+      slaOverdue,
+      awaitingVerification,
+      resolvedToday,
+      recentActivity,
+    ] = await Promise.all([
+      // Active (non-closed, non-resolved) incidents
+      Incident.countDocuments({
+        status: { $nin: ['Resolved', 'Closed'] },
+      }),
+
+      // Priority breakdown (non-resolved)
+      Incident.aggregate([
+        { $match: { status: { $nin: ['Resolved', 'Closed'] } } },
+        { $group: { _id: '$effectivePriority', count: { $sum: 1 } } },
+      ]),
+
+      // SLA overdue
+      Incident.countDocuments({
+        status: { $nin: ['Resolved', 'Closed'] },
+        slaDeadline: { $lt: now },
+      }),
+
+      // Awaiting verification
+      Incident.countDocuments({ status: 'AwaitingVerification' }),
+
+      // Resolved today
+      Incident.countDocuments({
+        status: { $in: ['Resolved', 'Closed'] },
+        resolvedAt: {
+          $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+        },
+      }),
+
+      // Recent audit activity (last 10 entries)
+      AuditLog.find()
+        .populate('actorId', 'name role')
+        .sort({ timestamp: -1 })
+        .limit(10)
+        .lean(),
+    ]);
+
+    // Build priority map
+    const priorityMap: Record<string, number> = {
+      Critical: 0,
+      High: 0,
+      Medium: 0,
+      Low: 0,
+    };
+    for (const p of priorityBreakdown) {
+      if (p._id && priorityMap[p._id] !== undefined) {
+        priorityMap[p._id] = p.count;
+      }
+    }
+
+    return {
+      totalOpen,
+      priorityBreakdown: priorityMap,
+      slaOverdue,
+      awaitingVerification,
+      resolvedToday,
+      recentActivity,
+    };
+  }
+
+  /**
+   * Returns GeoJSON FeatureCollection of active incident locations.
+   * Used to render priority-colored markers on Leaflet maps.
+   */
+  async getIncidentMap() {
+    const incidents = await Incident.find({
+      status: { $nin: ['Resolved', 'Closed'] },
+    })
+      .select(
+        'incidentId title effectivePriority status addressText canonicalLocation reportCount slaDeadline'
+      )
+      .lean();
+
+    const priorityColor: Record<string, string> = {
+      Critical: '#DC2626',
+      High: '#EA580C',
+      Medium: '#CA8A04',
+      Low: '#16A34A',
+    };
+
+    const features = incidents.map((inc) => ({
+      type: 'Feature' as const,
+      geometry: inc.canonicalLocation,
+      properties: {
+        incidentId: inc.incidentId,
+        title: inc.title,
+        priority: inc.effectivePriority,
+        status: inc.status,
+        address: inc.addressText || '',
+        reportCount: inc.reportCount,
+        slaDeadline: inc.slaDeadline,
+        color: priorityColor[inc.effectivePriority] || '#64748B',
+      },
+    }));
+
+    return {
+      type: 'FeatureCollection' as const,
+      features,
+    };
+  }
+
+  /**
+   * Lists active field workers, optionally filtered by department code.
+   */
+  async getFieldWorkers(departmentCode?: string) {
+    const query: Record<string, unknown> = {
+      role: 'field_worker',
+      isActive: true,
+    };
+    if (departmentCode && departmentCode !== 'ALL') {
+      query.departmentName = new RegExp(departmentCode, 'i');
+    }
+
+    const workers = await User.find(query)
+      .select('_id name phone departmentName ward')
+      .lean();
+
+    return workers;
+  }
+
+  /**
+   * Returns incidents with AwaitingVerification status plus their pending work orders.
+   */
+  async getVerificationQueue() {
+    const incidents = await Incident.find({ status: 'AwaitingVerification' })
+      .sort({ slaDeadline: 1, firstReportedAt: 1 })
+      .lean();
+
+    const incidentIds = incidents.map((i) => i._id);
+
+    const workOrders = await WorkOrder.find({
+      incidentId: { $in: incidentIds },
+      status: 'AwaitingVerification',
+    })
+      .populate('assignedWorkerIds', 'name phone')
+      .sort({ submittedAt: 1 })
+      .lean();
+
+    // Map work orders by incidentId for easy join
+    const woByIncident: Record<string, typeof workOrders> = {};
+    for (const wo of workOrders) {
+      const key = String(wo.incidentId);
+      if (!woByIncident[key]) woByIncident[key] = [];
+      woByIncident[key].push(wo);
+    }
+
+    return incidents.map((inc) => ({
+      incident: inc,
+      workOrders: woByIncident[String(inc._id)] || [],
+    }));
   }
 }
 
