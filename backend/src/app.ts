@@ -12,6 +12,7 @@ import voiceRoutes from './routes/voice.routes';
 import reportRoutes from './routes/report.routes';
 import taxonomyRoutes from './routes/taxonomy.routes';
 import municipalRoutes from './routes/municipal.routes';
+import workerRoutes from './routes/worker.routes';
 
 export const createApp = (): Express => {
   const app = express();
@@ -80,6 +81,9 @@ export const createApp = (): Express => {
 
   // Municipal Operations & Incident Management Routes
   app.use('/api/municipal', municipalRoutes);
+
+  // Field Worker Operations Routes
+  app.use('/api/worker', workerRoutes);
 
   return app;
 };

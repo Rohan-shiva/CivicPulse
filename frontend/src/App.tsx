@@ -7,6 +7,8 @@ import { StaffLoginPage } from './pages/auth/StaffLoginPage';
 import { CitizenDashboard } from './pages/citizen/CitizenDashboard';
 import { CreateComplaintPage } from './pages/citizen/CreateComplaintPage';
 import { OfficerDashboard } from './pages/officer/OfficerDashboard';
+import { WorkerDashboard } from './pages/worker/WorkerDashboard';
+import { WorkOrderDetailPage } from './pages/worker/WorkOrderDetailPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({
   children,
@@ -77,6 +79,24 @@ export const AppContent: React.FC = () => {
             element={
               <ProtectedRoute allowedRoles={['officer', 'admin']}>
                 <OfficerDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Field Worker Portal Routes */}
+          <Route
+            path="/worker"
+            element={
+              <ProtectedRoute allowedRoles={['field_worker', 'officer', 'admin']}>
+                <WorkerDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/worker/tasks/:workOrderId"
+            element={
+              <ProtectedRoute allowedRoles={['field_worker', 'officer', 'admin']}>
+                <WorkOrderDetailPage />
               </ProtectedRoute>
             }
           />
