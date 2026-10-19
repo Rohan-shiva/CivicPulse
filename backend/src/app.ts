@@ -11,6 +11,7 @@ import authRoutes from './routes/auth.routes';
 import voiceRoutes from './routes/voice.routes';
 import reportRoutes from './routes/report.routes';
 import taxonomyRoutes from './routes/taxonomy.routes';
+import municipalRoutes from './routes/municipal.routes';
 
 export const createApp = (): Express => {
   const app = express();
@@ -76,6 +77,9 @@ export const createApp = (): Express => {
 
   // Central Taxonomies (Departments & Issue Categories)
   app.use('/api', taxonomyRoutes);
+
+  // Municipal Operations & Incident Management Routes
+  app.use('/api/municipal', municipalRoutes);
 
   return app;
 };
