@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { workerController } from '../controllers/worker.controller';
 import { requireAuth, requireRole } from '../middleware/auth';
+import { upload } from '../middleware/upload';
 
 const router = Router();
 
@@ -20,6 +21,13 @@ router.get('/work-orders/:workOrderId', (req, res, next) =>
 // Start work order (Assigned -> InProgress)
 router.patch('/work-orders/:workOrderId/start', (req, res, next) =>
   workerController.startWork(req, res, next)
+);
+
+// Submit resolution evidence photos & notes (InProgress -> AwaitingVerification)
+router.post(
+  '/work-orders/:workOrderId/submit-resolution',
+  upload.array('photos', 3),
+  (req, res, next) => workerController.submitResolution(req, res, next)
 );
 
 export default router;

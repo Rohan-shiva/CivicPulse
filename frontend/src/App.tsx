@@ -9,6 +9,7 @@ import { CreateComplaintPage } from './pages/citizen/CreateComplaintPage';
 import { OfficerDashboard } from './pages/officer/OfficerDashboard';
 import { WorkerDashboard } from './pages/worker/WorkerDashboard';
 import { WorkOrderDetailPage } from './pages/worker/WorkOrderDetailPage';
+import { ResolutionSubmitPage } from './pages/worker/ResolutionSubmitPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({
   children,
@@ -97,6 +98,14 @@ export const AppContent: React.FC = () => {
             element={
               <ProtectedRoute allowedRoles={['field_worker', 'officer', 'admin']}>
                 <WorkOrderDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/worker/tasks/:workOrderId/resolve"
+            element={
+              <ProtectedRoute allowedRoles={['field_worker', 'officer', 'admin']}>
+                <ResolutionSubmitPage />
               </ProtectedRoute>
             }
           />
