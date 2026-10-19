@@ -13,6 +13,7 @@ import reportRoutes from './routes/report.routes';
 import taxonomyRoutes from './routes/taxonomy.routes';
 import municipalRoutes from './routes/municipal.routes';
 import workerRoutes from './routes/worker.routes';
+import notificationRoutes from './routes/notification.routes';
 
 export const createApp = (): Express => {
   const app = express();
@@ -84,6 +85,9 @@ export const createApp = (): Express => {
 
   // Field Worker Operations Routes
   app.use('/api/worker', workerRoutes);
+
+  // User Notifications Routes
+  app.use('/api/notifications', notificationRoutes);
 
   return app;
 };

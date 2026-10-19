@@ -5,6 +5,7 @@ import { AuditLog } from '../models/AuditLog';
 import { Notification } from '../models/Notification';
 import { CitizenReport } from '../models/CitizenReport';
 import { User } from '../models/User';
+import { socketService } from './socket.service';
 import { NotFoundError, BadRequestError } from '../utils/errors';
 
 /** Generate a sequential work-order ID: WO-YYYY-NNNNNN */
@@ -91,6 +92,10 @@ export class WorkOrderService {
       message: `You have been assigned work order ${workOrderId} for incident ${incident.incidentId}: ${incident.title}`,
     }));
     await Notification.insertMany(notifDocs);
+
+    // Socket.IO Real-time distribution
+    socketService.broadcastWorkOrderAssignment(workerIds, workOrder);
+    notifDocs.forEach((n) => socketService.notifyUser(String(n.userId), n));
 
     return workOrder;
   }
@@ -183,6 +188,9 @@ export class WorkOrderService {
       reason: resolutionNotes || 'Resolution submitted for officer review',
     });
 
+    // Real-time Socket.IO notification to officers
+    socketService.broadcastWorkOrderUpdate(workOrder);
+
     return workOrder;
   }
 
@@ -242,7 +250,14 @@ export class WorkOrderService {
           message: `Your reported issue "${incident.title}" has been resolved and verified by a municipal officer.`,
         }));
         await Notification.insertMany(notifDocs);
+        notifDocs.forEach((n) => socketService.notifyUser(String(n.userId), n));
       }
+    }
+
+    // Real-time Socket.IO updates
+    socketService.broadcastWorkOrderUpdate(workOrder);
+    if (incident) {
+      socketService.broadcastIncidentUpdate(incident);
     }
 
     return workOrder;
@@ -303,7 +318,14 @@ export class WorkOrderService {
     }));
     if (notifDocs.length > 0) {
       await Notification.insertMany(notifDocs);
+      notifDocs.forEach((n) => socketService.notifyUser(String(n.userId), n));
     }
+
+    // Real-time Socket.IO notification to workers and officers
+    socketService.broadcastWorkOrderUpdate(
+      workOrder,
+      workOrder.assignedWorkerIds.map((id) => String(id))
+    );
 
     return workOrder;
   }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import { Navbar } from './components/Navbar';
 import { LoginPage } from './pages/auth/LoginPage';
 import { StaffLoginPage } from './pages/auth/StaffLoginPage';
@@ -139,7 +140,9 @@ export const App: React.FC = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppContent />
+        <SocketProvider>
+          <AppContent />
+        </SocketProvider>
       </AuthProvider>
     </BrowserRouter>
   );

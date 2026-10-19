@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Shield, PlusCircle, FileText, LogOut, LayoutDashboard, Wrench } from 'lucide-react';
+import { NotificationBell } from './NotificationBell';
 
 export const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -78,6 +79,9 @@ export const Navbar: React.FC = () => {
                   <FileText className="w-4 h-4 mr-1 sm:mr-1.5 text-slate-500" />
                   <span className="hidden md:inline">My Complaints</span>
                 </Link>
+
+                {/* Real-time Notification Bell */}
+                <NotificationBell />
 
                 {/* User Profile Pill */}
                 <div className="flex items-center pl-2 border-l border-slate-200 space-x-2 sm:space-x-3">

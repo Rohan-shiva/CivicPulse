@@ -298,6 +298,11 @@ export const notificationApi = {
     const res = await api.patch<{ success: boolean }>(`/notifications/${notificationId}/read`);
     return res.data;
   },
+
+  markAllAsRead: async () => {
+    const res = await api.patch<{ success: boolean; message: string }>('/notifications/read-all');
+    return res.data;
+  },
 };
 
 export default api;

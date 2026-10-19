@@ -2,6 +2,7 @@ import http from 'http';
 import { createApp } from './app';
 import { env } from './config/env';
 import { connectDatabase, disconnectDatabase } from './config/database';
+import { socketService } from './services/socket.service';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = createApp();
@@ -10,6 +11,9 @@ const app = createApp();
 app.use(errorHandler);
 
 const server = http.createServer(app);
+
+// Initialize Socket.IO server
+socketService.init(server);
 
 const startServer = async () => {
   try {
