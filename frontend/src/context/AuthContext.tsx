@@ -7,6 +7,15 @@ interface AuthContextType {
   loading: boolean;
   loginCitizen: (phone: string, otp: string, name?: string, email?: string) => Promise<IUser>;
   loginStaff: (phone: string, otp: string) => Promise<IUser>;
+  registerStaff: (data: {
+    name: string;
+    phone: string;
+    otp: string;
+    role: 'officer' | 'field_worker';
+    departmentName?: string;
+    ward?: string;
+    email?: string;
+  }) => Promise<IUser>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -54,6 +63,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return res.user;
   };
 
+  const registerStaff = async (data: {
+    name: string;
+    phone: string;
+    otp: string;
+    role: 'officer' | 'field_worker';
+    departmentName?: string;
+    ward?: string;
+    email?: string;
+  }) => {
+    const res = await authApi.verifyOtp({
+      ...data,
+      purpose: 'staff_register',
+    });
+    setUser(res.user);
+    return res.user;
+  };
+
   const logout = async () => {
     try {
       await authApi.logout();
@@ -69,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         loginCitizen,
         loginStaff,
+        registerStaff,
         logout,
         refreshUser,
       }}

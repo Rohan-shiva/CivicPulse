@@ -158,6 +158,46 @@ export class AuthService {
     const tokens = this.generateTokens(user);
     return { user, tokens };
   }
+
+  /**
+   * Handles Staff Registration after OTP verification
+   */
+  async registerStaff(data: {
+    name: string;
+    phone: string;
+    role: 'officer' | 'field_worker';
+    departmentName?: string;
+    ward?: string;
+    email?: string;
+  }): Promise<{ user: IUser; tokens: { accessToken: string; refreshToken: string } }> {
+    let user = await User.findOne({ phone: data.phone });
+
+    if (user) {
+      user.name = data.name.trim() || user.name;
+      user.role = data.role;
+      if (data.departmentName) user.departmentName = data.departmentName.toUpperCase().trim();
+      if (data.ward) user.ward = data.ward.trim();
+      if (data.email) user.email = data.email.toLowerCase().trim();
+      user.phoneVerifiedAt = new Date();
+      user.isActive = true;
+      await user.save();
+    } else {
+      user = await User.create({
+        name: data.name.trim(),
+        phone: data.phone,
+        role: data.role,
+        departmentName: (data.departmentName || 'ROADS').toUpperCase().trim(),
+        ward: data.ward?.trim(),
+        email: data.email ? data.email.toLowerCase().trim() : undefined,
+        preferredLanguage: 'en',
+        phoneVerifiedAt: new Date(),
+        isActive: true,
+      });
+    }
+
+    const tokens = this.generateTokens(user);
+    return { user, tokens };
+  }
 }
 
 export const authService = new AuthService();

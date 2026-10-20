@@ -60,7 +60,12 @@ export class CloudinaryService {
         },
         (error, result?: UploadApiResponse) => {
           if (error || !result) {
-            console.error('❌ Cloudinary Upload Error:', error);
+            console.error('❌ Cloudinary Upload Error:', {
+              message: error?.message,
+              http_code: error?.http_code,
+              name: error?.name,
+              error: error
+            });
             return reject(new Error(`Cloudinary upload failed: ${error?.message || 'Unknown error'}`));
           }
 

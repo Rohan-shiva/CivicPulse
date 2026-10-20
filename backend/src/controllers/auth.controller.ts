@@ -19,7 +19,7 @@ export class AuthController {
       if (parsed.purpose === 'staff_login') {
         const staff = await User.findOne({ phone: normalizedPhone });
         if (!staff || staff.role === 'citizen') {
-          throw new BadRequestError('No municipal staff account registered with this phone number.');
+          throw new BadRequestError('No municipal staff account registered with this phone number. Please register your staff account first.');
         }
       }
 
@@ -53,6 +53,21 @@ export class AuthController {
 
       if (parsed.purpose === 'staff_login') {
         const result = await authService.staffLogin(normalizedPhone);
+        user = result.user;
+        tokens = result.tokens;
+      } else if (parsed.purpose === 'staff_register') {
+        if (!parsed.name || parsed.name.trim().length < 2) {
+          throw new BadRequestError('Full name (minimum 2 characters) is required for staff registration.');
+        }
+        const staffRole = parsed.role === 'field_worker' ? 'field_worker' : 'officer';
+        const result = await authService.registerStaff({
+          name: parsed.name,
+          phone: normalizedPhone,
+          role: staffRole,
+          departmentName: parsed.departmentName || 'ROADS',
+          ward: parsed.ward,
+          email: parsed.email || undefined,
+        });
         user = result.user;
         tokens = result.tokens;
       } else {

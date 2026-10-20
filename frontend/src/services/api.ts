@@ -25,7 +25,10 @@ const api = axios.create({
 
 // Authentication APIs
 export const authApi = {
-  sendOtp: async (phone: string, purpose: 'citizen_login' | 'staff_login' = 'citizen_login') => {
+  sendOtp: async (
+    phone: string,
+    purpose: 'citizen_login' | 'staff_login' | 'staff_register' = 'citizen_login'
+  ) => {
     const res = await api.post<{ success: boolean; message: string; cooldownSeconds: number }>(
       '/auth/send-otp',
       { phone, purpose }
@@ -38,7 +41,10 @@ export const authApi = {
     otp: string;
     name?: string;
     email?: string;
-    purpose?: 'citizen_login' | 'staff_login';
+    purpose?: 'citizen_login' | 'staff_login' | 'staff_register';
+    role?: 'officer' | 'field_worker';
+    departmentName?: string;
+    ward?: string;
   }) => {
     const res = await api.post<{ success: boolean; user: IUser; token: string }>(
       '/auth/verify-otp',

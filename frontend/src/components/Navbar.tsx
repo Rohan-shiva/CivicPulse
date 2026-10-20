@@ -103,15 +103,25 @@ export const Navbar: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <Link
                   to="/login"
-                  className="inline-flex items-center px-3.5 py-1.5 text-xs sm:text-sm font-medium text-slate-700 hover:text-civic-navy"
+                  className="inline-flex items-center px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 hover:text-civic-navy"
                 >
                   Citizen Login
                 </Link>
                 <Link
-                  to="/staff/login"
-                  className="inline-flex items-center px-3 py-1.5 border border-slate-300 text-xs font-semibold rounded text-slate-600 hover:bg-slate-50"
+                  to="/staff/login?portal=officer"
+                  className="inline-flex items-center px-2.5 py-1.5 border border-slate-300 text-xs font-semibold rounded text-civic-navy bg-slate-50 hover:bg-slate-100 transition-colors"
                 >
-                  Staff Portal
+                  <LayoutDashboard className="w-3.5 h-3.5 mr-1 text-civic-navy" />
+                  <span className="hidden sm:inline">Officer Portal</span>
+                  <span className="sm:hidden">Officer</span>
+                </Link>
+                <Link
+                  to="/staff/login?portal=worker"
+                  className="inline-flex items-center px-2.5 py-1.5 border border-emerald-300 text-xs font-semibold rounded text-emerald-800 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                >
+                  <Wrench className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                  <span className="hidden sm:inline">Field Worker</span>
+                  <span className="sm:hidden">Worker</span>
                 </Link>
               </div>
             )}
