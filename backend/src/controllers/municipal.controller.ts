@@ -222,6 +222,38 @@ export class MunicipalController {
       next(error);
     }
   }
+
+  /**
+   * POST /api/municipal/incidents/:incidentId/duplicate-review
+   * Confirms merge or dismisses suspected duplicate incident
+   */
+  async reviewDuplicate(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) throw new UnauthorizedError('Authentication required');
+
+      const { incidentId } = req.params;
+      const { decision, targetIncidentId, notes } = req.body;
+
+      if (!['confirm_merge', 'dismiss'].includes(decision)) {
+        throw new BadRequestError("decision must be either 'confirm_merge' or 'dismiss'");
+      }
+
+      const result = await municipalService.reviewDuplicateIncident(
+        incidentId,
+        decision as 'confirm_merge' | 'dismiss',
+        req.user.userId,
+        targetIncidentId,
+        notes
+      );
+
+      res.status(200).json({
+        success: true,
+        ...result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const municipalController = new MunicipalController();

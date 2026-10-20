@@ -31,12 +31,15 @@ export class WorkOrderService {
       throw new BadRequestError('At least one worker ID is required');
     }
 
-    const incident = await Incident.findOne({ incidentId });
+    const incident = mongoose.Types.ObjectId.isValid(incidentId)
+      ? await Incident.findOne({ $or: [{ incidentId }, { _id: incidentId }] })
+      : await Incident.findOne({ incidentId });
+
     if (!incident) {
       throw new NotFoundError(`Incident '${incidentId}' not found`);
     }
 
-    // Validate worker IDs exist and have field_worker role
+    // Validate worker IDs exist and have field_worker or officer role
     const workerObjectIds = workerIds.map((id) => new mongoose.Types.ObjectId(id));
     const workers = await User.find({
       _id: { $in: workerObjectIds },
@@ -49,12 +52,13 @@ export class WorkOrderService {
     }
 
     const workOrderId = await generateWorkOrderId();
+    const assignedDepartment = incident.assignedDepartment || incident.department || 'GENERAL';
 
     // Deadline = incident SLA deadline (already set at incident creation)
     const workOrder = await WorkOrder.create({
       workOrderId,
       incidentId: incident._id,
-      assignedDepartment: incident.assignedDepartment,
+      assignedDepartment,
       assignedWorkerIds: workerObjectIds,
       status: 'Assigned',
       assignedAt: new Date(),

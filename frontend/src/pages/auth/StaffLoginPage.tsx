@@ -124,7 +124,7 @@ export const StaffLoginPage: React.FC = () => {
           phone: phone.trim(),
           otp: otp.trim(),
           role,
-          departmentName: department,
+          departmentName: isOfficer ? undefined : department,
           ward: ward.trim() || undefined,
         });
       } else {
@@ -275,48 +275,63 @@ export const StaffLoginPage: React.FC = () => {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Department *
-                      </label>
-                      <select
-                        value={department}
-                        onChange={(e) => setDepartment(e.target.value)}
-                        className="w-full text-xs px-2.5 py-2 border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-civic-navy focus:outline-hidden"
-                      >
-                        {departments.length > 0 ? (
-                          departments.map((d) => (
-                            <option key={d.code} value={d.code}>
-                              {d.name}
-                            </option>
-                          ))
-                        ) : (
-                          <>
-                            <option value="ROADS">Roads & Infrastructure</option>
-                            <option value="SANITATION">Solid Waste & Sanitation</option>
-                            <option value="WATER">Water Supply & Sewerage</option>
-                            <option value="ELECTRICAL">Street Lighting & Electrical</option>
-                            <option value="DRAINAGE">Storm Water Drainage</option>
-                            <option value="HEALTH">Public Health</option>
-                          </>
-                        )}
-                      </select>
-                    </div>
+                  {!isOfficer ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          Department *
+                        </label>
+                        <select
+                          value={department}
+                          onChange={(e) => setDepartment(e.target.value)}
+                          className="w-full text-xs px-2.5 py-2 border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-civic-navy focus:outline-hidden"
+                        >
+                          {departments.length > 0 ? (
+                            departments.map((d) => (
+                              <option key={d.code} value={d.code}>
+                                {d.name}
+                              </option>
+                            ))
+                          ) : (
+                            <>
+                              <option value="ROADS">Roads & Infrastructure</option>
+                              <option value="SANITATION">Solid Waste & Sanitation</option>
+                              <option value="WATER">Water Supply & Sewerage</option>
+                              <option value="ELECTRICAL">Street Lighting & Electrical</option>
+                              <option value="DRAINAGE">Storm Water Drainage</option>
+                              <option value="HEALTH">Public Health</option>
+                            </>
+                          )}
+                        </select>
+                      </div>
 
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          Ward / Zone (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={ward}
+                          onChange={(e) => setWard(e.target.value)}
+                          placeholder="e.g. Ward 42"
+                          className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-civic-navy focus:outline-hidden"
+                        />
+                      </div>
+                    </div>
+                  ) : (
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Ward / Zone (Optional)
+                        Jurisdiction / Ward (Optional)
                       </label>
                       <input
                         type="text"
                         value={ward}
                         onChange={(e) => setWard(e.target.value)}
-                        placeholder="e.g. Ward 42"
+                        placeholder="e.g. Central Zone / All Wards"
                         className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-civic-navy focus:outline-hidden"
                       />
                     </div>
-                  </div>
+                  )}
                 </>
               )}
 

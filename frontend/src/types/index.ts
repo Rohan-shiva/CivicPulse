@@ -137,6 +137,7 @@ export interface IDashboardStats {
   slaOverdue: number;
   awaitingVerification: number;
   resolvedToday: number;
+  pendingDuplicateReviews?: number;
   recentActivity: IAuditLog[];
 }
 

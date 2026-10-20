@@ -18,9 +18,9 @@ export class DuplicateService {
   private reviewThreshold: number;
 
   constructor() {
-    this.searchRadiusMeters = env.DUPLICATE_SEARCH_RADIUS_METERS || 75;
-    this.autoLinkThreshold = env.DUPLICATE_AUTO_LINK_THRESHOLD || 0.88;
-    this.reviewThreshold = env.DUPLICATE_REVIEW_THRESHOLD || 0.68;
+    this.searchRadiusMeters = env.DUPLICATE_SEARCH_RADIUS_METERS || 150;
+    this.autoLinkThreshold = env.DUPLICATE_AUTO_LINK_THRESHOLD || 0.72;
+    this.reviewThreshold = env.DUPLICATE_REVIEW_THRESHOLD || 0.52;
   }
 
   /**
@@ -58,6 +58,32 @@ export class DuplicateService {
     } catch (err) {
       console.warn('⚠️ Geospatial duplicate query returned error (e.g. index building):', err);
       nearbyIncidents = [];
+    }
+
+    // Fallback: If 2dsphere returns no candidates, check recent unresolved incidents via haversine
+    if (nearbyIncidents.length === 0) {
+      try {
+        const recentCandidates = await Incident.find({
+          status: { $in: ['Open', 'Assigned', 'InProgress', 'AwaitingVerification', 'Reopened'] },
+        })
+          .select('+descriptionEmbedding')
+          .sort({ updatedAt: -1 })
+          .limit(25)
+          .lean();
+
+        nearbyIncidents = (recentCandidates as any[]).filter((cand) => {
+          if (!cand.canonicalLocation?.coordinates) return false;
+          const [candLon, candLat] = cand.canonicalLocation.coordinates;
+          const dist = calculateDistanceMeters(
+            { latitude, longitude },
+            { latitude: candLat, longitude: candLon }
+          );
+          return dist <= this.searchRadiusMeters;
+        });
+      } catch (fbErr) {
+        console.warn('⚠️ Fallback duplicate candidate query failed:', fbErr);
+        nearbyIncidents = [];
+      }
     }
 
     if (nearbyIncidents.length === 0) {
@@ -109,7 +135,7 @@ export class DuplicateService {
       // If category matches, slight boost; if different category, penalize
       if (complaintType && incident.complaintType) {
         if (complaintType === incident.complaintType) {
-          similarity = Math.min(1.0, similarity + 0.05);
+          similarity = Math.min(1.0, similarity + 0.08);
         } else {
           similarity = Math.max(0.0, similarity - 0.2);
         }
@@ -122,10 +148,16 @@ export class DuplicateService {
       }
     }
 
-    // 4. Apply configurable thresholds
+    // 4. Apply configurable thresholds with proximity bonus
     let outcome: 'new_incident' | 'linked_auto' | 'under_review' = 'new_incident';
 
-    if (highestSimilarity >= this.autoLinkThreshold) {
+    const isStrongSameCategoryProximity =
+      complaintType &&
+      bestMatch?.complaintType === complaintType &&
+      bestDistance <= 60 &&
+      highestSimilarity >= 0.60;
+
+    if (highestSimilarity >= this.autoLinkThreshold || isStrongSameCategoryProximity) {
       outcome = 'linked_auto';
     } else if (highestSimilarity >= this.reviewThreshold) {
       outcome = 'under_review';

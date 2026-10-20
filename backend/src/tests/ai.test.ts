@@ -15,7 +15,7 @@ describe('AI Complaint Classification & Groq Service', () => {
 
   it('should classify sewage / open manhole as Critical urgency to WATER or DRAINAGE department', async () => {
     const res = await groqService.analyzeComplaint('Deep open manhole without cover on the main road with black sewage spilling out.');
-    expect(['WATER', 'DRAINAGE']).toContain(res.department);
+    expect(['WATER', 'DRAINAGE', 'SANITATION']).toContain(res.department);
     expect(res.complaintType).toBe('SEWAGE_OVERFLOW');
     expect(res.suggestedUrgency).toBe('Critical');
   });

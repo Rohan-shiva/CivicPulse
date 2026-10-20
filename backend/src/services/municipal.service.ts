@@ -12,6 +12,8 @@ export interface IIncidentFilters {
   department?: string;
   isOverdue?: boolean;
   search?: string;
+  duplicateReview?: boolean;
+  isDuplicate?: boolean;
 }
 
 export interface IPagination {
@@ -68,6 +70,13 @@ export class MunicipalService {
         { standardizedDescription: searchRegex },
         { addressText: searchRegex },
       ];
+    }
+
+    // 6. Duplicate / Merged Incidents Filter
+    if (filters.duplicateReview) {
+      query.duplicateReviewState = 'pending_review';
+    } else if (filters.isDuplicate) {
+      query.$or = [{ reportCount: { $gt: 1 } }, { duplicateReviewState: 'pending_review' }];
     }
 
     const page = Math.max(1, pagination.page);
@@ -200,6 +209,7 @@ export class MunicipalService {
       slaOverdue,
       awaitingVerification,
       resolvedToday,
+      pendingDuplicateReviews,
       recentActivity,
     ] = await Promise.all([
       // Active (non-closed, non-resolved) incidents
@@ -230,6 +240,12 @@ export class MunicipalService {
         },
       }),
 
+      // Suspected duplicates pending review
+      Incident.countDocuments({
+        duplicateReviewState: 'pending_review',
+        status: { $nin: ['Resolved', 'Closed'] },
+      }),
+
       // Recent audit activity (last 10 entries)
       AuditLog.find()
         .populate('actorId', 'name role')
@@ -257,6 +273,7 @@ export class MunicipalService {
       slaOverdue,
       awaitingVerification,
       resolvedToday,
+      pendingDuplicateReviews,
       recentActivity,
     };
   }
@@ -303,22 +320,118 @@ export class MunicipalService {
   }
 
   /**
-   * Lists active field workers, optionally filtered by department code.
+   * Lists active field workers (and operational staff), optionally filtered by department code.
    */
   async getFieldWorkers(departmentCode?: string) {
     const query: Record<string, unknown> = {
-      role: 'field_worker',
+      role: { $in: ['field_worker', 'officer'] },
       isActive: true,
     };
-    if (departmentCode && departmentCode !== 'ALL') {
-      query.departmentName = new RegExp(departmentCode, 'i');
+    if (departmentCode && departmentCode !== 'ALL' && departmentCode.trim().length > 0) {
+      query.departmentName = new RegExp(departmentCode.trim(), 'i');
     }
 
     const workers = await User.find(query)
-      .select('_id name phone departmentName ward')
+      .select('_id name phone departmentName ward role')
+      .sort({ name: 1 })
       .lean();
 
     return workers;
+  }
+
+  /**
+   * Officer confirms or dismisses a suspected duplicate incident.
+   * If confirm_merge: transfers citizen reports into target incident and closes duplicate.
+   * If dismiss: marks duplicateReviewState = 'dismissed' and keeps as distinct incident.
+   */
+  async reviewDuplicateIncident(
+    incidentId: string,
+    decision: 'confirm_merge' | 'dismiss',
+    officerId: string,
+    targetIncidentId?: string,
+    notes?: string
+  ) {
+    const incident = mongoose.Types.ObjectId.isValid(incidentId)
+      ? await Incident.findOne({ $or: [{ incidentId }, { _id: incidentId }] })
+      : await Incident.findOne({ incidentId });
+
+    if (!incident) {
+      throw new NotFoundError(`Incident '${incidentId}' not found`);
+    }
+
+    if (decision === 'dismiss') {
+      incident.duplicateReviewState = 'dismissed';
+      incident.isProvisional = false;
+      await incident.save();
+
+      await AuditLog.create({
+        entityType: 'Incident',
+        entityId: incident.incidentId,
+        action: 'DUPLICATE_REVIEW_DISMISSED',
+        actorId: new mongoose.Types.ObjectId(officerId),
+        actorRole: 'officer',
+        reason: notes || 'Officer confirmed issue is distinct and separate',
+      });
+
+      return {
+        incident,
+        message: `Duplicate review dismissed. Incident ${incident.incidentId} is retained as independent.`,
+      };
+    }
+
+    // Merge decision
+    let targetIncident: IIncident | null = null;
+    if (targetIncidentId) {
+      targetIncident = mongoose.Types.ObjectId.isValid(targetIncidentId)
+        ? await Incident.findOne({ $or: [{ incidentId: targetIncidentId }, { _id: targetIncidentId }] })
+        : await Incident.findOne({ incidentId: targetIncidentId });
+    }
+
+    if (!targetIncident) {
+      // Find nearest active incident in same department
+      targetIncident = await Incident.findOne({
+        _id: { $ne: incident._id },
+        department: incident.department,
+        status: { $nin: ['Resolved', 'Closed'] },
+      }).sort({ lastReportedAt: -1 });
+    }
+
+    if (!targetIncident) {
+      throw new BadRequestError('Could not find an active master incident to merge into');
+    }
+
+    // Transfer citizen reports to target incident
+    await CitizenReport.updateMany(
+      { incidentId: incident._id },
+      { $set: { incidentId: targetIncident._id } }
+    );
+
+    // Update target incident counts
+    targetIncident.reportCount = (targetIncident.reportCount || 1) + (incident.reportCount || 1);
+    targetIncident.lastReportedAt = new Date();
+    await targetIncident.save();
+
+    // Mark duplicate incident as closed & confirmed duplicate
+    incident.status = 'Closed';
+    incident.duplicateReviewState = 'confirmed_duplicate';
+    incident.isProvisional = false;
+    await incident.save();
+
+    await AuditLog.create({
+      entityType: 'Incident',
+      entityId: incident.incidentId,
+      action: 'DUPLICATE_MERGED',
+      actorId: new mongoose.Types.ObjectId(officerId),
+      actorRole: 'officer',
+      newValues: { mergedInto: targetIncident.incidentId },
+      reason: notes || `Merged into ${targetIncident.incidentId}`,
+    });
+
+    return {
+      incident,
+      targetIncident,
+      message: `Incident ${incident.incidentId} merged into ${targetIncident.incidentId} successfully.`,
+    };
   }
 
   /**

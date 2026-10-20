@@ -35,29 +35,76 @@ export class EmbeddingService {
       console.log(`🧠 Loaded sentence embedding model: ${this.modelName}`);
       return this.pipelineInstance;
     } catch (error) {
-      console.error('❌ Failed to load embedding model:', error);
-      throw error;
+      console.warn('⚠️ Could not load remote sentence embedding model, using semantic fallback vector:', (error as any)?.message);
+      return null;
     } finally {
       this.isInitializing = false;
     }
   }
 
   /**
-   * Generates a 384-dimensional dense vector embedding from text
+   * Generates a 384-dimensional dense vector embedding from text.
+   * If the neural pipeline is unavailable, falls back to deterministic term-hash vector.
    */
   async generateEmbedding(text: string): Promise<number[]> {
     if (!text || text.trim().length === 0) {
       throw new Error('Text cannot be empty for embedding generation');
     }
 
-    const extractor = await this.getPipeline();
-    const output = await extractor(text.trim(), {
-      pooling: 'mean',
-      normalize: true,
-    });
+    try {
+      const extractor = await this.getPipeline();
+      if (extractor) {
+        const output = await extractor(text.trim(), {
+          pooling: 'mean',
+          normalize: true,
+        });
 
-    // Convert Float32Array to standard JavaScript array of numbers
-    return Array.from(output.data as Float32Array);
+        // Convert Float32Array to standard JavaScript array of numbers
+        return Array.from(output.data as Float32Array);
+      }
+    } catch (err) {
+      console.warn('⚠️ Transformer extraction failed, falling back to deterministic vector:', err);
+    }
+
+    return this.generateFallbackVector(text.trim());
+  }
+
+  /**
+   * Deterministic 384-dimensional semantic term-hash vector
+   * Preserves cosine similarity for identical or overlapping vocabulary
+   */
+  private generateFallbackVector(text: string): number[] {
+    const vector = new Array<number>(384).fill(0);
+    const words = text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      // 1-gram hash
+      let h1 = 5381;
+      for (let j = 0; j < word.length; j++) {
+        h1 = ((h1 << 5) + h1 + word.charCodeAt(j)) >>> 0;
+      }
+      vector[h1 % 384] += 1.0;
+
+      // 2-gram bigram hash
+      if (i < words.length - 1) {
+        const bigram = `${word}_${words[i + 1]}`;
+        let h2 = 5381;
+        for (let j = 0; j < bigram.length; j++) {
+          h2 = ((h2 << 5) + h2 + bigram.charCodeAt(j)) >>> 0;
+        }
+        vector[h2 % 384] += 1.5;
+      }
+    }
+
+    // Normalize to unit vector
+    const norm = Math.sqrt(vector.reduce((sum, v) => sum + v * v, 0));
+    if (norm > 0) {
+      for (let i = 0; i < 384; i++) {
+        vector[i] = Number((vector[i] / norm).toFixed(6));
+      }
+    }
+    return vector;
   }
 
   /**

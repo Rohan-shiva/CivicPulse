@@ -33,6 +33,11 @@ router.post('/incidents/:incidentId/assign', (req, res, next) =>
   municipalController.assignWorkers(req, res, next)
 );
 
+// Duplicate review (merge or dismiss)
+router.post('/incidents/:incidentId/duplicate-review', (req, res, next) =>
+  municipalController.reviewDuplicate(req, res, next)
+);
+
 // Available field workers list
 router.get('/field-workers', (req, res, next) =>
   municipalController.getFieldWorkers(req, res, next)

@@ -35,7 +35,9 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
 
   const [fieldWorkers, setFieldWorkers] = useState<IFieldWorker[]>([]);
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([]);
+  const [workerDeptFilter, setWorkerDeptFilter] = useState<'ALL' | 'MATCHING'>('ALL');
   const [assigning, setAssigning] = useState(false);
+  const [reviewingDuplicate, setReviewingDuplicate] = useState(false);
   const [newStatus, setNewStatus] = useState<IncidentStatus | ''>('');
   const [statusReason, setStatusReason] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -49,8 +51,8 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
       const res = await municipalApi.getIncidentById(incidentId);
       setData(res);
 
-      // Load field workers for the incident's department
-      const workers = await municipalApi.getFieldWorkers(res.incident.department);
+      // Load all available active staff & field workers
+      const workers = await municipalApi.getFieldWorkers();
       setFieldWorkers(workers);
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to load incident details');
@@ -62,6 +64,21 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   useEffect(() => {
     loadDetails();
   }, [incidentId]);
+
+  const handleReviewDuplicate = async (decision: 'confirm_merge' | 'dismiss') => {
+    try {
+      setReviewingDuplicate(true);
+      setError(null);
+      const res = await municipalApi.reviewDuplicate(incidentId, decision);
+      setSuccessMsg(res.message || 'Duplicate review completed.');
+      await loadDetails();
+      onIncidentUpdated();
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to update duplicate review');
+    } finally {
+      setReviewingDuplicate(false);
+    }
+  };
 
   const handleAssignWorkers = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,11 +183,59 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
             </div>
           )}
 
+          {/* Suspected Duplicate Review Banner */}
+          {incident.duplicateReviewState === 'pending_review' && (
+            <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl space-y-3">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-1 flex-1">
+                  <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                    AI Suspected Duplicate Review Required
+                  </h4>
+                  <p className="text-xs text-amber-800">
+                    This incident was flagged by the duplicate detection engine as a potential duplicate of an existing unresolved incident in this area. You can merge it into the active complaint or dismiss the flag to keep it as an independent ticket.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  disabled={reviewingDuplicate}
+                  onClick={() => handleReviewDuplicate('confirm_merge')}
+                  className="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 text-white text-xs font-semibold rounded-lg shadow-xs transition flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {reviewingDuplicate ? 'Merging...' : 'Confirm & Merge Duplicate'}
+                </button>
+                <button
+                  type="button"
+                  disabled={reviewingDuplicate}
+                  onClick={() => handleReviewDuplicate('dismiss')}
+                  className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg transition disabled:opacity-50"
+                >
+                  Dismiss Flag (Keep Separate)
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Incident Overview Card */}
           <div className="bg-slate-50 rounded-xl p-5 border border-slate-200 space-y-3">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">{incident.title}</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-slate-900">{incident.title}</h2>
+                  {incident.duplicateReviewState === 'pending_review' && (
+                    <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 rounded">
+                      SUSPECTED DUPLICATE
+                    </span>
+                  )}
+                  {incident.reportCount > 1 && (
+                    <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300 rounded">
+                      🔁 {incident.reportCount} Reports Merged
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
                   Dept: {incident.department} • Type: {incident.complaintType}
                 </p>
@@ -209,43 +274,111 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Assign Workers Card */}
             <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm space-y-3">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-civic-saffron" />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                  Assign Field Workers
-                </h3>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-civic-saffron" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Assign Field Workers
+                  </h3>
+                </div>
+                {/* Department Filter Toggle */}
+                <div className="inline-flex rounded border border-slate-200 bg-slate-100 p-0.5 text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => setWorkerDeptFilter('ALL')}
+                    className={`px-2 py-0.5 rounded font-semibold transition ${
+                      workerDeptFilter === 'ALL' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500'
+                    }`}
+                  >
+                    All Staff ({fieldWorkers.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWorkerDeptFilter('MATCHING')}
+                    className={`px-2 py-0.5 rounded font-semibold transition ${
+                      workerDeptFilter === 'MATCHING' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500'
+                    }`}
+                  >
+                    {incident.department} Dept
+                  </button>
+                </div>
               </div>
 
               <form onSubmit={handleAssignWorkers} className="space-y-3">
-                {fieldWorkers.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">
-                    No active field workers found for {incident.department} department.
-                  </p>
-                ) : (
-                  <div className="space-y-1.5 max-h-36 overflow-y-auto border border-slate-200 rounded-lg p-2 bg-slate-50">
-                    {fieldWorkers.map((w) => (
-                      <label
-                        key={w._id}
-                        className="flex items-center gap-2 text-xs text-slate-700 hover:bg-white p-1 rounded cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedWorkerIds.includes(w._id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedWorkerIds([...selectedWorkerIds, w._id]);
-                            } else {
-                              setSelectedWorkerIds(selectedWorkerIds.filter((id) => id !== w._id));
-                            }
-                          }}
-                          className="rounded border-slate-300 text-civic-saffron focus:ring-civic-saffron"
-                        />
-                        <span className="font-medium">{w.name}</span>
-                        <span className="text-slate-400 font-mono text-[11px]">({w.phone})</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
+                {(() => {
+                  const filteredWorkers = fieldWorkers.filter((w) => {
+                    if (workerDeptFilter === 'ALL') return true;
+                    if (!w.departmentName || w.departmentName.toUpperCase() === 'ALL') return true;
+                    return (
+                      w.departmentName.toUpperCase().includes(incident.department.toUpperCase()) ||
+                      incident.department.toUpperCase().includes(w.departmentName.toUpperCase())
+                    );
+                  });
+
+                  if (filteredWorkers.length === 0) {
+                    return (
+                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 text-center space-y-1">
+                        <p className="font-medium">No staff found for {incident.department} department.</p>
+                        <p className="text-[11px] text-slate-400">
+                          Switch to &ldquo;All Staff&rdquo; above to assign any registered team member.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2 bg-slate-50">
+                      {filteredWorkers.map((w) => {
+                        const isMatch =
+                          w.departmentName &&
+                          (w.departmentName.toUpperCase().includes(incident.department.toUpperCase()) ||
+                            incident.department.toUpperCase().includes(w.departmentName.toUpperCase()));
+
+                        return (
+                          <label
+                            key={w._id}
+                            className={`flex items-center justify-between text-xs p-1.5 rounded cursor-pointer transition ${
+                              selectedWorkerIds.includes(w._id)
+                                ? 'bg-blue-50 border border-blue-200'
+                                : 'hover:bg-white border border-transparent'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={selectedWorkerIds.includes(w._id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedWorkerIds([...selectedWorkerIds, w._id]);
+                                  } else {
+                                    setSelectedWorkerIds(selectedWorkerIds.filter((id) => id !== w._id));
+                                  }
+                                }}
+                                className="rounded border-slate-300 text-civic-navy focus:ring-civic-navy"
+                              />
+                              <div>
+                                <span className="font-semibold text-slate-800">{w.name}</span>
+                                <span className="text-slate-400 font-mono text-[11px] ml-1.5">
+                                  {w.phone}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {isMatch && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded">
+                                  MATCH
+                                </span>
+                              )}
+                              <span className="text-[10px] font-medium text-slate-500 bg-slate-200 px-1.5 py-0.2 rounded">
+                                {w.departmentName || 'General'}
+                              </span>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
 
                 <button
                   type="submit"

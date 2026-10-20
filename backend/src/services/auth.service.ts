@@ -171,11 +171,19 @@ export class AuthService {
     email?: string;
   }): Promise<{ user: IUser; tokens: { accessToken: string; refreshToken: string } }> {
     let user = await User.findOne({ phone: data.phone });
+    const resolvedDepartment =
+      data.role === 'officer'
+        ? (data.departmentName?.toUpperCase().trim() || 'ALL')
+        : (data.departmentName?.toUpperCase().trim() || 'GENERAL');
 
     if (user) {
       user.name = data.name.trim() || user.name;
       user.role = data.role;
-      if (data.departmentName) user.departmentName = data.departmentName.toUpperCase().trim();
+      if (data.departmentName) {
+        user.departmentName = data.departmentName.toUpperCase().trim();
+      } else if (data.role === 'officer' && !user.departmentName) {
+        user.departmentName = 'ALL';
+      }
       if (data.ward) user.ward = data.ward.trim();
       if (data.email) user.email = data.email.toLowerCase().trim();
       user.phoneVerifiedAt = new Date();
@@ -186,7 +194,7 @@ export class AuthService {
         name: data.name.trim(),
         phone: data.phone,
         role: data.role,
-        departmentName: (data.departmentName || 'ROADS').toUpperCase().trim(),
+        departmentName: resolvedDepartment,
         ward: data.ward?.trim(),
         email: data.email ? data.email.toLowerCase().trim() : undefined,
         preferredLanguage: 'en',

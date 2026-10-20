@@ -171,6 +171,8 @@ export const municipalApi = {
     department?: string;
     isOverdue?: boolean;
     search?: string;
+    duplicateReview?: boolean;
+    isDuplicate?: boolean;
   }) => {
     const res = await api.get<{
       success: boolean;
@@ -210,6 +212,25 @@ export const municipalApi = {
       message: string;
       workOrder: IWorkOrder;
     }>(`/municipal/incidents/${incidentId}/assign`, { workerIds, scheduledAt });
+    return res.data;
+  },
+
+  reviewDuplicate: async (
+    incidentId: string,
+    decision: 'confirm_merge' | 'dismiss',
+    targetIncidentId?: string,
+    notes?: string
+  ) => {
+    const res = await api.post<{
+      success: boolean;
+      incident: IIncident;
+      targetIncident?: IIncident;
+      message: string;
+    }>(`/municipal/incidents/${incidentId}/duplicate-review`, {
+      decision,
+      targetIncidentId,
+      notes,
+    });
     return res.data;
   },
 

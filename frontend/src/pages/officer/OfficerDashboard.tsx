@@ -41,6 +41,7 @@ export const OfficerDashboard: React.FC = () => {
   const [priorityFilter, setPriorityFilter] = useState<UrgencyLevel | ''>('');
   const [deptFilter, setDeptFilter] = useState('ALL');
   const [overdueOnly, setOverdueOnly] = useState(false);
+  const [duplicatesOnly, setDuplicatesOnly] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   // View state: 'split' | 'queue' | 'map'
@@ -74,6 +75,7 @@ export const OfficerDashboard: React.FC = () => {
         department: deptFilter !== 'ALL' ? deptFilter : undefined,
         isOverdue: overdueOnly,
         search: searchTerm.trim() || undefined,
+        isDuplicate: duplicatesOnly || undefined,
       });
 
       setIncidents(res.incidents);
@@ -84,7 +86,7 @@ export const OfficerDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, statusFilter, priorityFilter, deptFilter, overdueOnly, searchTerm]);
+  }, [currentPage, statusFilter, priorityFilter, deptFilter, overdueOnly, duplicatesOnly, searchTerm]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -225,6 +227,32 @@ export const OfficerDashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Suspected Duplicates Alert Banner */}
+      {stats && stats.pendingDuplicateReviews && stats.pendingDuplicateReviews > 0 ? (
+        <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+            <div>
+              <span className="font-bold text-amber-900">
+                {stats.pendingDuplicateReviews} Suspected Duplicate Complaint{stats.pendingDuplicateReviews > 1 ? 's' : ''} Pending Review:
+              </span>
+              <span className="text-amber-800 ml-1.5">
+                AI detected civic reports that match existing unresolved incidents nearby.
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setDuplicatesOnly(!duplicatesOnly);
+              setCurrentPage(1);
+            }}
+            className="px-3 py-1 bg-amber-700 hover:bg-amber-800 text-white font-semibold rounded-lg transition self-start sm:self-auto shrink-0"
+          >
+            {duplicatesOnly ? 'Show All Incidents' : 'Filter Pending Duplicates'}
+          </button>
+        </div>
+      ) : null}
+
       {/* Main Content Area: Split, Queue, or Map */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Interactive Map (Visible in 'split' or 'map' views) */}
@@ -348,6 +376,22 @@ export const OfficerDashboard: React.FC = () => {
                   />
                   <span>Overdue Only</span>
                 </label>
+
+                {/* Duplicates / Merged Filter */}
+                <label className={`flex items-center gap-2 text-xs font-medium cursor-pointer px-2.5 py-1.5 rounded-lg border transition ${
+                  duplicatesOnly ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-slate-50 text-slate-700 border-slate-200'
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={duplicatesOnly}
+                    onChange={(e) => {
+                      setDuplicatesOnly(e.target.checked);
+                      setCurrentPage(1);
+                    }}
+                    className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span>🔁 Duplicates / Merged</span>
+                </label>
               </div>
 
               {/* Incidents Table */}
@@ -386,10 +430,22 @@ export const OfficerDashboard: React.FC = () => {
                         return (
                           <tr key={inc._id} className="hover:bg-slate-50/80 transition">
                             <td className="py-2.5 px-3">
-                              <span className="font-mono font-bold text-slate-900 block">
-                                {inc.incidentId}
-                              </span>
-                              <span className="text-slate-600 line-clamp-1 font-medium">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-mono font-bold text-slate-900 block">
+                                  {inc.incidentId}
+                                </span>
+                                {inc.duplicateReviewState === 'pending_review' && (
+                                  <span className="px-1.5 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300 rounded">
+                                    ⚠️ REVIEW
+                                  </span>
+                                )}
+                                {inc.reportCount > 1 && (
+                                  <span className="px-1.5 py-0.5 text-[9px] font-bold bg-blue-100 text-blue-800 border border-blue-200 rounded">
+                                    🔁 {inc.reportCount} merged
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-slate-600 line-clamp-1 font-medium mt-0.5">
                                 {inc.title}
                               </span>
                             </td>
